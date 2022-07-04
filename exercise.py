@@ -118,19 +118,35 @@ class AnimateExample(Scene):
         self.wait(1)
 
 
-class CountingScene(Scene):
-    def construct(self):
-        # Create Decimal Number and add it to scene
-        number = DecimalNumber().set_color(WHITE).scale(5)
-        # Add an updater to keep the DecimalNumber centered as its value changes
-        number.add_updater(lambda number: number.move_to(ORIGIN))
+# class Count(Animation):
+#     def __init__(
+#         self, number: DecimalNumber, start: float, end: float, **kwargs
+#     ) -> None:
+#         # Pass number as the mobject of the animation
+#         super().__init__(number, **kwargs)
+#         # Set start and end
+#         self.start = start
+#         self.end = end
+#
+#     def interpolate_mobject(self, alpha: float) -> None:
+#         # Set value of DecimalNumber according to alpha
+#         value = self.start + (alpha * (self.end - self.start))
+#         self.mobject.set_value(value)
 
-        self.add(number)
 
-        # Play the Count Animation to count from 0 to 100 in 4 seconds
-        self.play(Count(number, 0, 100), run_time=2, rate_func=double_smooth)
-
-        self.wait()
+# class CountingScene(Scene):
+#     def construct(self):
+#         # Create Decimal Number and add it to scene
+#         number = DecimalNumber().set_color(WHITE).scale(5)
+#         # Add an updater to keep the DecimalNumber centered as its value changes
+#         number.add_updater(lambda number: number.move_to(ORIGIN))
+#
+#         self.add(number)
+#
+#         # Play the Count Animation to count from 0 to 100 in 4 seconds
+#         self.play(Count(number, 0, 100), run_time=2, rate_func=double_smooth)
+#
+#         self.wait()
 
 
 class MobjectExample(Scene):
@@ -348,6 +364,7 @@ class VectorArrow(Scene):
         self.add(numberplane, dot, arrow, origin_text, tip_text)
 
 
+# 이거 원리가 이해가 안간다. 물론 안쓸 것 같지만. < 쓴다.
 class GradientImageFromArray(Scene):
     def construct(self):
         n = 256
@@ -393,3 +410,229 @@ class BooleanOperations(Scene):
         )
         difference_text.next_to(d, UP)
         self.play(FadeIn(difference_text))
+
+
+class PointMovingOnShapes(Scene):
+    def construct(self):
+        circle = Circle(radius=1, color=BLUE)
+        dot = Dot()
+        dot2 = dot.copy().shift(RIGHT)
+        self.add(dot)
+
+        line = Line([3, 0, 0], [5, 0, 0])
+        self.add(line)
+
+        self.play(GrowFromCenter(circle))
+        self.play(Transform(dot, dot2))
+        self.play(MoveAlongPath(dot, circle), run_time=2, rate_func=linear)
+        self.play(Rotating(dot, about_point=[2, 0, 0]), run_time=1.5)
+        self.wait()
+
+
+class MovingAround(Scene):
+    def construct(self):
+        square = Square(color=BLUE, fill_opacity=1)
+
+        self.play(square.animate.shift(LEFT))
+        self.play(square.animate.set_fill(ORANGE))
+        self.play(square.animate.scale(0.3))
+        self.play(square.animate.rotate(0.4))
+
+
+class ValueTrackerExample(Scene):
+    def construct(self):
+        number_line = NumberLine(
+            x_range=[-10, 10, 1],
+            length=10,
+            color=BLUE,
+            include_numbers=True,
+            label_direction=UP,
+        )
+        pointer = Vector(DOWN).next_to(ORIGIN, U)
+        label = (
+            MathTex("x")
+            .add_updater(lambda m: m.next_to(pointer, UP))
+            .next_to(pointer, U)
+        )
+
+        tracker = ValueTracker(0)
+        pointer.add_updater(
+            lambda m: m.next_to(number_line.n2p(tracker.get_value()), UP)
+        )
+
+        p_and_l = VGroup(pointer, label)
+
+        self.add(number_line, p_and_l)
+        self.wait(0.5)
+        tracker += 1.5
+        self.wait(0.5)
+        tracker -= 4
+        self.wait(0.5)
+        self.play(tracker.animate.set_value(5))
+        self.wait(0.5)
+        self.play(tracker.animate.set_value(3))
+        self.play(tracker.animate.increment_value(-2))
+        self.wait(0.5)
+
+
+class MovingAngle(Scene):
+    def construct(self):
+        rotation_center = LEFT
+
+        theta_tracker = ValueTracker(110)
+        line1 = Line(LEFT, RIGHT)
+        line_moving = Line(LEFT, RIGHT)
+        line_ref = line_moving.copy()
+        line_moving.rotate(
+            theta_tracker.get_value() * DEGREES, about_point=rotation_center
+        )
+        a = Angle(line1, line_moving, radius=0.5, other_angle=False)
+        tex = MathTex(r"\theta").move_to(
+            Angle(
+                line1, line_moving, radius=0.5 + 3 * SMALL_BUFF, other_angle=False
+            ).point_from_proportion(0.5)
+        )
+
+        self.add(line1, line_moving, a, tex)
+        self.wait()
+
+        line_moving.add_updater(
+            lambda x: x.become(line_ref.copy()).rotate(
+                theta_tracker.get_value() * DEGREES, about_point=rotation_center
+            )
+        )
+
+        a.add_updater(
+            lambda x: x.become(Angle(line1, line_moving, radius=0.5, other_angle=False))
+        )
+        tex.add_updater(
+            lambda x: x.move_to(
+                Angle(
+                    line1, line_moving, radius=0.5 + 3 * SMALL_BUFF, other_angle=False
+                ).point_from_proportion(0.5)
+            )
+        )
+
+        self.play(theta_tracker.animate.set_value(40))
+        self.play(theta_tracker.animate.increment_value(140))
+        self.play(tex.animate.set_color(RED), run_time=0.5)
+        self.play(theta_tracker.animate.set_value(350))
+
+
+class CopyMovingAngle(Scene):
+    def construct(self):
+        rotation_ref_p = L
+
+        theta_tracker = ValueTracker(110)
+        line_std = Line(L, R)
+        line_move = Line(L, R)
+        line_ref = line_move.copy()
+        line_move.rotate(
+            theta_tracker.get_value() * DEGREES, about_point=rotation_ref_p
+        )
+        a = Angle(line_std, line_move, radius=0.5 + 3 * SMALL_BUFF, other_angle=False)
+        tex = MathTex(r"\theta").move_to(
+            Angle(
+                line_std, line_move, radius=0.5 + 3 * SMALL_BUFF, other_angle=False
+            ).point_from_proportion(0.5)
+        )
+
+        self.add(line_std, line_move, a, tex)
+        self.wait()
+
+        line_move.add_updater(
+            lambda x: x.become(line_ref.copy()).rotate(
+                theta_tracker.get_value() * DEGREES, about_point=rotation_ref_p
+            )
+        )
+
+
+class SineCurveUnitCircle(Scene):
+    # contributed by heejin_park, https://infograph.tistory.com/230
+    def construct(self):
+        self.show_axis()
+        self.show_circle()
+        self.move_dot_and_draw_curve()
+        self.wait()
+
+    def show_axis(self):
+        x_start = np.array([-6, 0, 0])
+        x_end = np.array([6, 0, 0])
+
+        y_start = np.array([-4, -2, 0])
+        y_end = np.array([-4, 2, 0])
+
+        x_axis = Line(x_start, x_end)
+        y_axis = Line(y_start, y_end)
+
+        self.add(x_axis, y_axis)
+        self.add_x_labels()
+
+        self.origin_point = np.array([-4, 0, 0])
+        self.curve_start = np.array([-3, 0, 0])
+
+    def add_x_labels(self):
+        x_labels = [
+            MathTex(r"\pi"),
+            MathTex(r"2 \pi"),
+            MathTex(r"3 \pi"),
+            MathTex(r"4 \pi"),
+        ]
+
+        for i in range(len(x_labels)):
+            x_labels[i].next_to(np.array([-1 + 2 * i, 0, 0]), DOWN)
+            self.add(x_labels[i])
+
+    def show_circle(self):
+        circle = Circle(radius=1)
+        circle.move_to(self.origin_point)
+        self.add(circle)
+        self.circle = circle
+
+    def move_dot_and_draw_curve(self):
+        orbit = self.circle
+        origin_point = self.origin_point
+
+        dot = Dot(radius=0.08, color=YELLOW)
+        dot.move_to(orbit.point_from_proportion(0))
+        self.t_offset = 0
+        rate = 0.25
+
+        def go_around_circle(mob, dt):
+            self.t_offset += dt * rate
+            # print(self.t_offset)
+            mob.move_to(orbit.point_from_proportion(self.t_offset % 1))
+
+        def get_line_to_circle():
+            return Line(origin_point, dot.get_center(), color=BLUE)
+
+        def get_line_to_curve():
+            x = self.curve_start[0] + self.t_offset * 4
+            y = dot.get_center()[1]
+            return Line(
+                dot.get_center(), np.array([x, y, 0]), color=YELLOW_A, stroke_width=2
+            )
+
+        self.curve = VGroup()
+        self.curve.add(Line(self.curve_start, self.curve_start))
+
+        def get_curve():
+            last_line = self.curve[-1]
+            x = self.curve_start[0] + self.t_offset * 4
+            y = dot.get_center()[1]
+            new_line = Line(last_line.get_end(), np.array([x, y, 0]), color=YELLOW_D)
+            self.curve.add(new_line)
+
+            return self.curve
+
+        dot.add_updater(go_around_circle)
+
+        origin_to_circle_line = always_redraw(get_line_to_circle)
+        dot_to_curve_line = always_redraw(get_line_to_curve)
+        sine_curve_line = always_redraw(get_curve)
+
+        self.add(dot)
+        self.add(orbit, origin_to_circle_line, dot_to_curve_line, sine_curve_line)
+        self.wait(8.5)
+
+        dot.remove_updater(go_around_circle)
